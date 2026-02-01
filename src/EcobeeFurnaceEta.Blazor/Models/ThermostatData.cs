@@ -31,6 +31,16 @@ public class ThermostatData
     public bool FurnaceRunning { get; set; }
 
     /// <summary>
+    /// Whether the system is currently heating.
+    /// </summary>
+    public bool IsHeating { get; set; }
+
+    /// <summary>
+    /// Whether the system is currently cooling.
+    /// </summary>
+    public bool IsCooling { get; set; }
+
+    /// <summary>
     /// Name of the thermostat/zone.
     /// </summary>
     public string Name { get; set; } = "Main";
