@@ -393,6 +393,365 @@ html, body {
     color: var(--text-muted);
 }
 
+/* Auth Container */
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.auth-card {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 480px;
+    width: 100%;
+}
+
+.auth-card h2 {
+    font-size: 1.5rem;
+    color: var(--accent-orange);
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.auth-step {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.step-info h3 {
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.help-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.help-text a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+.help-text a:hover {
+    text-decoration: underline;
+}
+
+.instructions {
+    margin: 1rem 0;
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.instructions li {
+    margin-bottom: 0.5rem;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.input-group label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.input-group input {
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.input-group input:focus {
+    border-color: var(--accent-blue);
+}
+
+.input-group input::placeholder {
+    color: var(--text-muted);
+}
+
+.security-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.pin-display {
+    text-align: center;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    border-radius: 12px;
+}
+
+.pin-display .pin {
+    display: block;
+    font-size: 2.5rem;
+    font-weight: 700;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    color: var(--accent-orange);
+    letter-spacing: 0.2em;
+    margin-bottom: 0.5rem;
+}
+
+.pin-display small {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.button-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--accent-orange);
+    color: var(--bg-primary);
+    width: 100%;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #ea8e04;
+}
+
+.btn-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--border-color);
+}
+
+.btn-danger {
+    background: var(--accent-red);
+    color: white;
+    width: 100%;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #ef4444;
+}
+
+.btn-link {
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    width: 100%;
+}
+
+.btn-link:hover {
+    color: var(--text-secondary);
+}
+
+.error-message {
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid var(--accent-red);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--accent-red);
+    font-size: 0.875rem;
+}
+
+.auth-success {
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.status-icon {
+    display: inline-block;
+    width: 48px;
+    height: 48px;
+    line-height: 48px;
+    font-size: 1.5rem;
+    border-radius: 50%;
+    margin-bottom: 1rem;
+}
+
+.status-icon.success {
+    background: var(--accent-green);
+    color: var(--bg-primary);
+}
+
+.auth-success p {
+    color: var(--accent-green);
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.security-info {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.security-info h4 {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.security-info ul {
+    list-style: none;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.security-info li {
+    padding: 0.25rem 0;
+    padding-left: 1rem;
+    position: relative;
+}
+
+.security-info li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: var(--accent-green);
+}
+
+/* Header Enhancements */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.live-badge,
+.demo-badge {
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.live-badge {
+    background: var(--accent-green);
+    color: var(--bg-primary);
+}
+
+.demo-badge {
+    background: var(--accent-yellow);
+    color: var(--bg-primary);
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    color: var(--text-primary);
+    background: var(--bg-card);
+}
+
+.btn-refresh {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.2s;
+}
+
+.btn-refresh:hover {
+    color: var(--accent-blue);
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 100;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 400px;
+    width: 100%;
+}
+
+.modal-content h2 {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+}
+
+.setting-item {
+    margin-bottom: 1.5rem;
+}
+
+.setting-item label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.setting-item p {
+    color: var(--text-primary);
+}
+
+.setting-actions {
+    margin-bottom: 1rem;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
     .dashboard {
