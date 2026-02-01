@@ -1,0 +1,438 @@
+/* Ecobee Furnace ETA - Dark Theme Dashboard */
+
+:root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-card: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent-orange: #f59e0b;
+    --accent-green: #4ade80;
+    --accent-blue: #60a5fa;
+    --accent-red: #f87171;
+    --accent-yellow: #fbbf24;
+    --border-color: #475569;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.5;
+}
+
+#app {
+    min-height: 100vh;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+}
+
+/* Dashboard Layout */
+.dashboard {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-header {
+    text-align: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--accent-orange);
+    margin-bottom: 0.25rem;
+}
+
+.thermostat-name {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.dashboard-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.dashboard-footer {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem 0;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* ETA Countdown */
+.eta-countdown {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1.25rem;
+}
+
+.eta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.eta-item.secondary {
+    padding-left: 1.5rem;
+    opacity: 0.8;
+}
+
+.eta-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.eta-indicator.running,
+.eta-indicator.will-run {
+    background: var(--accent-orange);
+    box-shadow: 0 0 8px var(--accent-orange);
+    animation: pulse 1.5s infinite;
+}
+
+.eta-indicator.at-target {
+    background: var(--accent-green);
+}
+
+.eta-indicator.waiting {
+    background: var(--accent-yellow);
+}
+
+.eta-indicator.target {
+    background: var(--accent-green);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.eta-label {
+    color: var(--text-secondary);
+    min-width: 70px;
+}
+
+.eta-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.eta-value.running,
+.eta-value.will-run {
+    color: var(--accent-orange);
+}
+
+.eta-value.at-target {
+    color: var(--accent-green);
+}
+
+.eta-value.waiting {
+    color: var(--accent-yellow);
+}
+
+.eta-value .at-target {
+    color: var(--accent-green);
+}
+
+.eta-value .warning {
+    color: var(--accent-red);
+}
+
+/* Temperature Gauge */
+.temp-gauge {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1.25rem;
+}
+
+.gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.gauge-label.outdoor {
+    color: var(--accent-blue);
+}
+
+.gauge-label.current {
+    color: var(--accent-orange);
+}
+
+.gauge-label.target {
+    color: var(--accent-green);
+}
+
+.gauge-bar {
+    padding: 1rem 0;
+}
+
+.gauge-track {
+    position: relative;
+    height: 8px;
+    background: var(--bg-card);
+    border-radius: 4px;
+}
+
+.gauge-fill {
+    position: absolute;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-orange));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.gauge-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.marker-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 3px solid var(--bg-primary);
+}
+
+.gauge-marker.outdoor .marker-dot {
+    background: var(--accent-blue);
+}
+
+.gauge-marker.current .marker-dot {
+    background: var(--accent-orange);
+    box-shadow: 0 0 10px var(--accent-orange);
+}
+
+.gauge-marker.target .marker-dot {
+    background: var(--accent-green);
+}
+
+.gauge-sublabels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Temperature Curve */
+.temp-curve {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.temp-curve svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Stats Panel */
+.stats-panel {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1.25rem;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.375rem 0;
+    font-size: 0.875rem;
+}
+
+.stat-row.highlight {
+    font-weight: 600;
+    padding: 0.5rem 0;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+}
+
+.stat-value {
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.stat-value.positive {
+    color: var(--accent-green);
+}
+
+.stat-value.negative {
+    color: var(--accent-red);
+}
+
+.stat-value.at-target {
+    color: var(--accent-green);
+}
+
+.stat-value .checkmark {
+    margin-left: 0.25rem;
+}
+
+.stat-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 0.75rem 0;
+}
+
+/* Schedule Timeline */
+.schedule-timeline {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1.25rem;
+}
+
+.schedule-timeline h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.timeline-bar {
+    position: relative;
+    height: 36px;
+    background: var(--bg-card);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.timeline-event {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: var(--bg-primary);
+    border-left: 1px solid var(--border-color);
+    padding: 0.25rem;
+    font-size: 0.625rem;
+    overflow: hidden;
+    transition: background 0.2s;
+}
+
+.timeline-event.active {
+    background: var(--accent-orange);
+    color: var(--bg-primary);
+}
+
+.timeline-event:first-child {
+    border-left: none;
+}
+
+.event-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.event-temp {
+    opacity: 0.8;
+}
+
+.time-indicator {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: var(--accent-red);
+    box-shadow: 0 0 4px var(--accent-red);
+    z-index: 10;
+}
+
+.timeline-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.625rem;
+    color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .dashboard {
+        padding: 0.75rem;
+    }
+
+    .dashboard-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .gauge-labels {
+        font-size: 1rem;
+    }
+
+    .eta-item {
+        flex-wrap: wrap;
+    }
+
+    .eta-label {
+        min-width: 60px;
+        font-size: 0.875rem;
+    }
+
+    .eta-value {
+        font-size: 0.875rem;
+    }
+
+    .dashboard-footer {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+}
+
+@media (min-width: 768px) {
+    .dashboard {
+        padding: 2rem;
+    }
+
+    .dashboard-content {
+        gap: 2rem;
+    }
+}

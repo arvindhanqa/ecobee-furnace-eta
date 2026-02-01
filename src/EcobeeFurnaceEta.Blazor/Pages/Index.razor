@@ -1,0 +1,94 @@
+@page "/"
+@using EcobeeFurnaceEta.Blazor.Components
+@using EcobeeFurnaceEta.Blazor.Models
+@using EcobeeFurnaceEta.Blazor.Services
+@inject EcobeeApiClient ApiClient
+@inject PredictionEngine PredictionEngine
+
+<div class="dashboard">
+    <header class="dashboard-header">
+        <h1>FURNACE ETA</h1>
+        <span class="thermostat-name">@_thermostatData?.Name</span>
+    </header>
+
+    @if (_isLoading)
+    {
+        <div class="loading">Loading...</div>
+    }
+    else if (_thermostatData != null && _prediction != null)
+    {
+        <main class="dashboard-content">
+            <section class="eta-section">
+                <ETACountdown Prediction="_prediction" TargetTempF="_thermostatData.SetpointF" />
+            </section>
+
+            <section class="gauge-section">
+                <TempGauge
+                    OutdoorTempF="_thermostatData.OutdoorTempF"
+                    CurrentTempF="_thermostatData.CurrentTempF"
+                    TargetTempF="_thermostatData.SetpointF" />
+            </section>
+
+            <section class="curve-section">
+                <TempCurve
+                    Projections="_prediction.Projections"
+                    CurrentTempF="_thermostatData.CurrentTempF"
+                    TargetTempF="_thermostatData.SetpointF"
+                    OutdoorTempF="_thermostatData.OutdoorTempF" />
+            </section>
+
+            <section class="stats-section">
+                <StatsPanel Prediction="_prediction" />
+            </section>
+
+            <section class="schedule-section">
+                <ScheduleTimeline Schedule="_schedule" />
+            </section>
+        </main>
+
+        <footer class="dashboard-footer">
+            <span class="outdoor-temp">
+                Outside: @_thermostatData.OutdoorTempF.ToString("F1")°F
+                (@FahrenheitToCelsius(_thermostatData.OutdoorTempF).ToString("F1")°C)
+            </span>
+            <span class="humidity">Humidity: @_thermostatData.HumidityPercent.ToString("F0")%</span>
+            <span class="last-update">Updated: @_thermostatData.Timestamp.ToString("HH:mm:ss")</span>
+        </footer>
+    }
+</div>
+
+@code {
+    private ThermostatData? _thermostatData;
+    private HeatUpProfile? _heatUpProfile;
+    private FurnacePrediction? _prediction;
+    private List<ScheduleEvent> _schedule = new();
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+
+        // Load data from API client (mock data in Phase 1)
+        _thermostatData = await ApiClient.GetThermostatDataAsync();
+        _heatUpProfile = await ApiClient.GetHeatUpProfileAsync();
+        _schedule = await ApiClient.GetTodayScheduleAsync();
+
+        // Generate prediction
+        if (_thermostatData != null && _heatUpProfile != null)
+        {
+            _prediction = PredictionEngine.Predict(_thermostatData, _heatUpProfile);
+        }
+
+        _isLoading = false;
+    }
+
+    private static double FahrenheitToCelsius(double fahrenheit)
+    {
+        return (fahrenheit - 32) * 5 / 9;
+    }
+}

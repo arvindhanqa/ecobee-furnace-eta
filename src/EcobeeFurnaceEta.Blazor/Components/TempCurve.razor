@@ -1,0 +1,95 @@
+@using EcobeeFurnaceEta.Blazor.Models
+@namespace EcobeeFurnaceEta.Blazor.Components
+
+<div class="temp-curve">
+    <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
+        @* Background grid *@
+        <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+            </pattern>
+        </defs>
+        <rect width="400" height="200" fill="url(#grid)" />
+
+        @* Target line *@
+        <line x1="0" y1="@GetYPosition(TargetTempF)" x2="400" y2="@GetYPosition(TargetTempF)"
+              stroke="#4ade80" stroke-width="1" stroke-dasharray="5,5" opacity="0.7" />
+        <text x="395" y="@(GetYPosition(TargetTempF) - 5)" fill="#4ade80" font-size="10" text-anchor="end">
+            @TargetTempF.ToString("F0")°F
+        </text>
+
+        @* Current temp line *@
+        <line x1="0" y1="@GetYPosition(CurrentTempF)" x2="400" y2="@GetYPosition(CurrentTempF)"
+              stroke="#60a5fa" stroke-width="1" stroke-dasharray="2,2" opacity="0.5" />
+
+        @* Projected temperature curve *@
+        @if (Projections.Count > 0)
+        {
+            <polyline points="@GetCurvePoints()"
+                      fill="none"
+                      stroke="#f59e0b"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round" />
+
+            @* Data points *@
+            @foreach (var proj in Projections)
+            {
+                var x = GetXPosition(proj.MinutesFromNow);
+                var y = GetYPosition(proj.ProjectedTempF);
+                <circle cx="@x" cy="@y" r="4" fill="@(proj.AtOrAboveTarget ? "#4ade80" : "#f59e0b")" />
+            }
+        }
+
+        @* X-axis labels *@
+        <text x="10" y="195" fill="rgba(255,255,255,0.6)" font-size="10">NOW</text>
+        <text x="100" y="195" fill="rgba(255,255,255,0.6)" font-size="10">+15min</text>
+        <text x="200" y="195" fill="rgba(255,255,255,0.6)" font-size="10">+30min</text>
+        <text x="300" y="195" fill="rgba(255,255,255,0.6)" font-size="10">+45min</text>
+        <text x="370" y="195" fill="rgba(255,255,255,0.6)" font-size="10">+60min</text>
+
+        @* Y-axis labels *@
+        <text x="5" y="@(GetYPosition(MinTempDisplay) + 4)" fill="rgba(255,255,255,0.6)" font-size="10">
+            @MinTempDisplay.ToString("F0")°
+        </text>
+        <text x="5" y="@(GetYPosition(MaxTempDisplay) + 4)" fill="rgba(255,255,255,0.6)" font-size="10">
+            @MaxTempDisplay.ToString("F0")°
+        </text>
+    </svg>
+</div>
+
+@code {
+    [Parameter] public List<TemperatureProjection> Projections { get; set; } = new();
+    [Parameter] public double CurrentTempF { get; set; }
+    [Parameter] public double TargetTempF { get; set; }
+    [Parameter] public double OutdoorTempF { get; set; }
+
+    private double MinTempDisplay => Math.Floor(Math.Min(CurrentTempF - 2, OutdoorTempF) / 5) * 5;
+    private double MaxTempDisplay => Math.Ceiling((TargetTempF + 2) / 5) * 5;
+    private double TempRange => MaxTempDisplay - MinTempDisplay;
+
+    private const double ChartHeight = 170; // Leave room for labels
+    private const double ChartWidth = 380;
+    private const double PaddingLeft = 10;
+    private const double PaddingTop = 10;
+
+    private double GetXPosition(int minutes)
+    {
+        return PaddingLeft + (minutes / 60.0) * ChartWidth;
+    }
+
+    private double GetYPosition(double temp)
+    {
+        // Invert Y since SVG 0 is at top
+        var normalized = (temp - MinTempDisplay) / TempRange;
+        return PaddingTop + ChartHeight - (normalized * ChartHeight);
+    }
+
+    private string GetCurvePoints()
+    {
+        if (Projections.Count == 0) return "";
+
+        return string.Join(" ", Projections.Select(p =>
+            $"{GetXPosition(p.MinutesFromNow):F1},{GetYPosition(p.ProjectedTempF):F1}"));
+    }
+}

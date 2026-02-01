@@ -1,0 +1,74 @@
+@using EcobeeFurnaceEta.Blazor.Services
+@namespace EcobeeFurnaceEta.Blazor.Components
+
+<div class="schedule-timeline">
+    <h3>Today's Schedule</h3>
+    <div class="timeline-bar">
+        @foreach (var evt in Schedule)
+        {
+            var width = GetEventWidth(evt);
+            var left = GetEventLeft(evt);
+            var isActive = IsEventActive(evt);
+            <div class="timeline-event @(isActive ? "active" : "")"
+                 style="left: @left%; width: @width%;"
+                 title="@evt.Name: @evt.SetpointF°F (@evt.StartTime - @evt.EndTime)">
+                <span class="event-name">@evt.Name</span>
+                <span class="event-temp">@evt.SetpointF°F</span>
+            </div>
+        }
+        @* Current time indicator *@
+        <div class="time-indicator" style="left: @GetCurrentTimePosition()%"></div>
+    </div>
+    <div class="timeline-labels">
+        <span>12am</span>
+        <span>6am</span>
+        <span>12pm</span>
+        <span>6pm</span>
+        <span>12am</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<ScheduleEvent> Schedule { get; set; } = new();
+
+    private double GetEventWidth(ScheduleEvent evt)
+    {
+        var start = evt.StartTime.ToTimeSpan().TotalMinutes;
+        var end = evt.EndTime.ToTimeSpan().TotalMinutes;
+
+        // Handle overnight events
+        if (end < start)
+        {
+            end += 24 * 60; // Add 24 hours
+        }
+
+        var duration = end - start;
+        return (duration / (24 * 60)) * 100;
+    }
+
+    private double GetEventLeft(ScheduleEvent evt)
+    {
+        var start = evt.StartTime.ToTimeSpan().TotalMinutes;
+        return (start / (24 * 60)) * 100;
+    }
+
+    private bool IsEventActive(ScheduleEvent evt)
+    {
+        var now = TimeOnly.FromDateTime(DateTime.Now);
+
+        // Handle overnight events (e.g., 22:00 to 06:00)
+        if (evt.EndTime < evt.StartTime)
+        {
+            return now >= evt.StartTime || now < evt.EndTime;
+        }
+
+        return now >= evt.StartTime && now < evt.EndTime;
+    }
+
+    private double GetCurrentTimePosition()
+    {
+        var now = DateTime.Now;
+        var minutesSinceMidnight = now.Hour * 60 + now.Minute;
+        return (minutesSinceMidnight / (24.0 * 60)) * 100;
+    }
+}

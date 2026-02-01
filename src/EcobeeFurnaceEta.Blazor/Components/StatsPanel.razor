@@ -1,0 +1,45 @@
+@using EcobeeFurnaceEta.Blazor.Models
+@namespace EcobeeFurnaceEta.Blazor.Components
+
+<div class="stats-panel">
+    <div class="stat-row">
+        <span class="stat-label">Heat Loss:</span>
+        <span class="stat-value negative">@Prediction.HeatLossRatePerMin.ToString("F2")°F/min</span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label">Heat-Up Rate:</span>
+        <span class="stat-value positive">@Prediction.HeatUpRatePerMin.ToString("F2")°F/min</span>
+    </div>
+    <div class="stat-row highlight">
+        <span class="stat-label">Effective:</span>
+        <span class="stat-value @(Prediction.EffectiveRatePerMin > 0 ? "positive" : "negative")">
+            @Prediction.EffectiveRatePerMin.ToString("F2")°F/min
+        </span>
+    </div>
+    <hr class="stat-divider" />
+    @foreach (var proj in GetKeyProjections())
+    {
+        <div class="stat-row">
+            <span class="stat-label">Temp in @proj.MinutesFromNow m:</span>
+            <span class="stat-value @(proj.AtOrAboveTarget ? "at-target" : "")">
+                @proj.ProjectedTempF.ToString("F1")°F
+                @if (proj.AtOrAboveTarget)
+                {
+                    <span class="checkmark">&#10003;</span>
+                }
+            </span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public FurnacePrediction Prediction { get; set; } = new();
+
+    private List<TemperatureProjection> GetKeyProjections()
+    {
+        // Show 30 and 60 minute projections
+        return Prediction.Projections
+            .Where(p => p.MinutesFromNow == 30 || p.MinutesFromNow == 60)
+            .ToList();
+    }
+}
