@@ -1,0 +1,236 @@
+@using EcobeeFurnaceEta.Blazor.Services
+@inject EcobeeAuthService AuthService
+@inject SecureTokenStorage TokenStorage
+
+<div class="auth-container">
+    <div class="auth-card">
+        <h2>Connect to Ecobee</h2>
+
+        @if (_isAuthenticated)
+        {
+            <div class="auth-success">
+                <span class="status-icon success">&#10003;</span>
+                <p>Connected to Ecobee</p>
+                <button class="btn btn-secondary" @onclick="HandleLogout">Disconnect</button>
+            </div>
+        }
+        else if (_currentStep == AuthStep.EnterApiKey)
+        {
+            <div class="auth-step">
+                <div class="step-info">
+                    <h3>Step 1: Enter your Ecobee API Key</h3>
+                    <p class="help-text">
+                        Get your API key from
+                        <a href="https://www.ecobee.com/consumerportal/index.html#/dev" target="_blank" rel="noopener">
+                            developer.ecobee.com
+                        </a>
+                    </p>
+                    <ol class="instructions">
+                        <li>Go to Developer section in your Ecobee portal</li>
+                        <li>Create a new app (or use existing)</li>
+                        <li>Copy the API Key</li>
+                    </ol>
+                </div>
+
+                <div class="input-group">
+                    <label for="apiKey">API Key</label>
+                    <input type="password"
+                           id="apiKey"
+                           @bind="_apiKey"
+                           @bind:event="oninput"
+                           placeholder="Enter your Ecobee API key"
+                           autocomplete="off" />
+                    <small class="security-note">
+                        Your API key is stored locally in your browser only.
+                    </small>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="error-message">@_errorMessage</div>
+                }
+
+                <button class="btn btn-primary"
+                        @onclick="HandleRequestPin"
+                        disabled="@(string.IsNullOrWhiteSpace(_apiKey) || _isLoading)">
+                    @if (_isLoading)
+                    {
+                        <span>Requesting PIN...</span>
+                    }
+                    else
+                    {
+                        <span>Get PIN</span>
+                    }
+                </button>
+
+                <button class="btn btn-link" @onclick="UseMockData">
+                    Skip - Use Demo Data Instead
+                </button>
+            </div>
+        }
+        else if (_currentStep == AuthStep.EnterPin)
+        {
+            <div class="auth-step">
+                <div class="step-info">
+                    <h3>Step 2: Authorize the App</h3>
+                    <p class="help-text">
+                        Enter this PIN at
+                        <a href="https://www.ecobee.com/consumerportal/index.html" target="_blank" rel="noopener">
+                            ecobee.com/consumerportal
+                        </a>
+                    </p>
+                </div>
+
+                <div class="pin-display">
+                    <span class="pin">@_pin</span>
+                    <small>Expires in @_pinExpiresMinutes minutes</small>
+                </div>
+
+                <ol class="instructions">
+                    <li>Go to ecobee.com/consumerportal</li>
+                    <li>Click "My Apps" in the menu</li>
+                    <li>Click "Add Application"</li>
+                    <li>Enter the PIN above</li>
+                    <li>Click "Authorize"</li>
+                    <li>Return here and click "I've Authorized"</li>
+                </ol>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="error-message">@_errorMessage</div>
+                }
+
+                <div class="button-group">
+                    <button class="btn btn-primary"
+                            @onclick="HandleCompleteAuth"
+                            disabled="@_isLoading">
+                        @if (_isLoading)
+                        {
+                            <span>Connecting...</span>
+                        }
+                        else
+                        {
+                            <span>I've Authorized - Connect</span>
+                        }
+                    </button>
+
+                    <button class="btn btn-secondary" @onclick="HandleBackToApiKey">
+                        Back
+                    </button>
+                </div>
+            </div>
+        }
+
+        <div class="security-info">
+            <h4>Security</h4>
+            <ul>
+                <li>Your Ecobee password is NEVER entered in this app</li>
+                <li>You authorize directly on Ecobee's website</li>
+                <li>Credentials are stored locally in your browser only</li>
+                <li>This app only requests read access to your thermostat</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnAuthenticated { get; set; }
+    [Parameter] public EventCallback OnSkipped { get; set; }
+
+    private enum AuthStep { EnterApiKey, EnterPin }
+
+    private AuthStep _currentStep = AuthStep.EnterApiKey;
+    private string _apiKey = "";
+    private string _pin = "";
+    private string _authorizationCode = "";
+    private int _pinExpiresMinutes = 0;
+    private bool _isLoading = false;
+    private bool _isAuthenticated = false;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+    }
+
+    private async Task HandleRequestPin()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            var result = await AuthService.RequestPinAsync(_apiKey);
+
+            if (result.Success)
+            {
+                _pin = result.Pin!;
+                _authorizationCode = result.AuthorizationCode!;
+                _pinExpiresMinutes = result.ExpiresInMinutes;
+                _currentStep = AuthStep.EnterPin;
+            }
+            else
+            {
+                _errorMessage = result.ErrorMessage;
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleCompleteAuth()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            var result = await AuthService.ExchangeCodeForTokensAsync(_apiKey, _authorizationCode);
+
+            if (result.Success)
+            {
+                _isAuthenticated = true;
+                await OnAuthenticated.InvokeAsync();
+            }
+            else if (result.IsPending)
+            {
+                _errorMessage = "Please authorize the app at ecobee.com first, then try again.";
+            }
+            else if (result.IsExpired)
+            {
+                _errorMessage = "PIN expired. Please request a new one.";
+                _currentStep = AuthStep.EnterApiKey;
+            }
+            else
+            {
+                _errorMessage = result.ErrorMessage;
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void HandleBackToApiKey()
+    {
+        _currentStep = AuthStep.EnterApiKey;
+        _errorMessage = null;
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        _isAuthenticated = false;
+        _apiKey = "";
+        _pin = "";
+        _currentStep = AuthStep.EnterApiKey;
+    }
+
+    private async Task UseMockData()
+    {
+        await OnSkipped.InvokeAsync();
+    }
+}
