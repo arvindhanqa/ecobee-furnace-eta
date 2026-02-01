@@ -36,17 +36,26 @@ public class EcobeeApiClient
 
         try
         {
-            var accessToken = await _authService.GetValidAccessTokenAsync();
+            // Try JWT token first, then fall back to OAuth
+            var accessToken = await _tokenStorage.GetJwtTokenAsync();
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                accessToken = await _authService.GetValidAccessTokenAsync();
+            }
+
             if (string.IsNullOrEmpty(accessToken))
             {
                 return ThermostatData.CreateMockSaskatoonWinter();
             }
 
+            // Get thermostat ID if available
+            var thermostatId = await _tokenStorage.GetThermostatIdAsync() ?? "";
+
             // Build the selection JSON for thermostat request
             var selection = new
             {
-                selectionType = "registered",
-                selectionMatch = "",
+                selectionType = string.IsNullOrEmpty(thermostatId) ? "registered" : "thermostats",
+                selectionMatch = thermostatId,
                 includeRuntime = true,
                 includeWeather = true,
                 includeProgram = true,
@@ -108,16 +117,25 @@ public class EcobeeApiClient
 
         try
         {
-            var accessToken = await _authService.GetValidAccessTokenAsync();
+            // Try JWT token first, then fall back to OAuth
+            var accessToken = await _tokenStorage.GetJwtTokenAsync();
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                accessToken = await _authService.GetValidAccessTokenAsync();
+            }
+
             if (string.IsNullOrEmpty(accessToken))
             {
                 return GetMockSchedule();
             }
 
+            // Get thermostat ID if available
+            var thermostatId = await _tokenStorage.GetThermostatIdAsync() ?? "";
+
             var selection = new
             {
-                selectionType = "registered",
-                selectionMatch = "",
+                selectionType = string.IsNullOrEmpty(thermostatId) ? "registered" : "thermostats",
+                selectionMatch = thermostatId,
                 includeProgram = true
             };
 

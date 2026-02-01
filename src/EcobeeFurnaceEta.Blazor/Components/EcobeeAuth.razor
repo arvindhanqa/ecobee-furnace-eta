@@ -14,11 +14,84 @@
                 <button class="btn btn-secondary" @onclick="HandleLogout">Disconnect</button>
             </div>
         }
+        else if (_currentStep == AuthStep.EnterJwt)
+        {
+            <div class="auth-step">
+                <div class="step-info">
+                    <h3>Quick Connect with JWT Token</h3>
+                    <p class="help-text">
+                        Get your JWT token from the Ecobee portal using browser DevTools.
+                    </p>
+                    <ol class="instructions">
+                        <li>Open <a href="https://www.ecobee.com/consumerportal" target="_blank">ecobee.com/consumerportal</a></li>
+                        <li>Press F12 to open DevTools</li>
+                        <li>Go to Network tab</li>
+                        <li>Click around or refresh the page</li>
+                        <li>Find a "thermostat" request</li>
+                        <li>Click Headers tab, find "Authorization"</li>
+                        <li>Copy the token (starts with "eyJ...")</li>
+                    </ol>
+                </div>
+
+                <div class="input-group">
+                    <label for="jwtToken">JWT Token</label>
+                    <textarea id="jwtToken"
+                              @bind="_jwtToken"
+                              @bind:event="oninput"
+                              placeholder="Paste your JWT token here (starts with eyJ...)"
+                              rows="3"
+                              autocomplete="off"></textarea>
+                    <small class="security-note">
+                        Token is stored locally in your browser. Expires in a few hours.
+                    </small>
+                </div>
+
+                <div class="input-group">
+                    <label for="thermostatId">Thermostat ID (optional)</label>
+                    <input type="text"
+                           id="thermostatId"
+                           @bind="_thermostatId"
+                           @bind:event="oninput"
+                           placeholder="e.g., 531622812385"
+                           autocomplete="off" />
+                    <small class="security-note">
+                        Found in the API requests or your Ecobee account settings.
+                    </small>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="error-message">@_errorMessage</div>
+                }
+
+                <button class="btn btn-primary"
+                        @onclick="HandleJwtConnect"
+                        disabled="@(string.IsNullOrWhiteSpace(_jwtToken) || _isLoading)">
+                    @if (_isLoading)
+                    {
+                        <span>Connecting...</span>
+                    }
+                    else
+                    {
+                        <span>Connect</span>
+                    }
+                </button>
+
+                <div class="auth-alternatives">
+                    <button class="btn btn-link" @onclick="SwitchToOAuth">
+                        Use OAuth PIN flow instead (recommended for long-term)
+                    </button>
+                    <button class="btn btn-link" @onclick="UseMockData">
+                        Skip - Use Demo Data
+                    </button>
+                </div>
+            </div>
+        }
         else if (_currentStep == AuthStep.EnterApiKey)
         {
             <div class="auth-step">
                 <div class="step-info">
-                    <h3>Step 1: Enter your Ecobee API Key</h3>
+                    <h3>OAuth: Enter your Ecobee API Key</h3>
                     <p class="help-text">
                         Get your API key from
                         <a href="https://www.ecobee.com/consumerportal/index.html#/dev" target="_blank" rel="noopener">
@@ -40,9 +113,6 @@
                            @bind:event="oninput"
                            placeholder="Enter your Ecobee API key"
                            autocomplete="off" />
-                    <small class="security-note">
-                        Your API key is stored locally in your browser only.
-                    </small>
                 </div>
 
                 @if (!string.IsNullOrEmpty(_errorMessage))
@@ -63,8 +133,8 @@
                     }
                 </button>
 
-                <button class="btn btn-link" @onclick="UseMockData">
-                    Skip - Use Demo Data Instead
+                <button class="btn btn-link" @onclick="SwitchToJwt">
+                    Back to JWT token method
                 </button>
             </div>
         }
@@ -72,7 +142,7 @@
         {
             <div class="auth-step">
                 <div class="step-info">
-                    <h3>Step 2: Authorize the App</h3>
+                    <h3>Authorize the App</h3>
                     <p class="help-text">
                         Enter this PIN at
                         <a href="https://www.ecobee.com/consumerportal/index.html" target="_blank" rel="noopener">
@@ -125,7 +195,6 @@
             <h4>Security</h4>
             <ul>
                 <li>Your Ecobee password is NEVER entered in this app</li>
-                <li>You authorize directly on Ecobee's website</li>
                 <li>Credentials are stored locally in your browser only</li>
                 <li>This app only requests read access to your thermostat</li>
             </ul>
@@ -137,9 +206,11 @@
     [Parameter] public EventCallback OnAuthenticated { get; set; }
     [Parameter] public EventCallback OnSkipped { get; set; }
 
-    private enum AuthStep { EnterApiKey, EnterPin }
+    private enum AuthStep { EnterJwt, EnterApiKey, EnterPin }
 
-    private AuthStep _currentStep = AuthStep.EnterApiKey;
+    private AuthStep _currentStep = AuthStep.EnterJwt;
+    private string _jwtToken = "";
+    private string _thermostatId = "531622812385"; // Default from user's info
     private string _apiKey = "";
     private string _pin = "";
     private string _authorizationCode = "";
@@ -150,7 +221,50 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        _isAuthenticated = await TokenStorage.IsAuthenticatedAsync();
+    }
+
+    private async Task HandleJwtConnect()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            // Validate JWT format (basic check)
+            var token = _jwtToken.Trim();
+            if (!token.StartsWith("eyJ"))
+            {
+                _errorMessage = "Invalid token format. JWT should start with 'eyJ...'";
+                return;
+            }
+
+            // Store the JWT token
+            await TokenStorage.StoreJwtTokenAsync(token, _thermostatId);
+
+            _isAuthenticated = true;
+            await OnAuthenticated.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void SwitchToOAuth()
+    {
+        _currentStep = AuthStep.EnterApiKey;
+        _errorMessage = null;
+    }
+
+    private void SwitchToJwt()
+    {
+        _currentStep = AuthStep.EnterJwt;
+        _errorMessage = null;
     }
 
     private async Task HandleRequestPin()
@@ -222,11 +336,12 @@
 
     private async Task HandleLogout()
     {
-        await AuthService.LogoutAsync();
+        await TokenStorage.ClearAllAsync();
         _isAuthenticated = false;
+        _jwtToken = "";
         _apiKey = "";
         _pin = "";
-        _currentStep = AuthStep.EnterApiKey;
+        _currentStep = AuthStep.EnterJwt;
     }
 
     private async Task UseMockData()
