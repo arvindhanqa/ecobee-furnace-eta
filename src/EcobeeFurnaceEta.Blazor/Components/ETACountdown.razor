@@ -1,0 +1,64 @@
+@using EcobeeFurnaceEta.Blazor.Models
+@namespace EcobeeFurnaceEta.Blazor.Components
+
+<div class="eta-countdown">
+    <div class="eta-item">
+        <span class="eta-indicator @GetFurnaceStatusClass()"></span>
+        <span class="eta-label">Furnace:</span>
+        <span class="eta-value @GetFurnaceStatusClass()">@Prediction.StatusMessage</span>
+    </div>
+
+    <div class="eta-item">
+        <span class="eta-indicator target"></span>
+        <span class="eta-label">Target:</span>
+        <span class="eta-value">
+            @if (Prediction.Status == FurnaceStatus.AtTarget)
+            {
+                <span class="at-target">@Prediction.FurnaceKickOnTempF.ToString("F0")°F reached</span>
+            }
+            else if (Prediction.MinutesToTarget < double.MaxValue)
+            {
+                <span>@TargetTempF.ToString("F0")°F reached in ~@FormatMinutes(Prediction.MinutesToTarget)</span>
+            }
+            else
+            {
+                <span class="warning">Cannot reach target</span>
+            }
+        </span>
+    </div>
+
+    @if (Prediction.Status == FurnaceStatus.WaitingForDeadband && Prediction.MinutesToFurnaceOn < double.MaxValue)
+    {
+        <div class="eta-item secondary">
+            <span class="eta-indicator waiting"></span>
+            <span class="eta-label">Furnace on in:</span>
+            <span class="eta-value">~@FormatMinutes(Prediction.MinutesToFurnaceOn)</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public FurnacePrediction Prediction { get; set; } = new();
+    [Parameter] public double TargetTempF { get; set; }
+
+    private string GetFurnaceStatusClass()
+    {
+        return Prediction.Status switch
+        {
+            FurnaceStatus.Running => "running",
+            FurnaceStatus.WillTurnOnNow => "will-run",
+            FurnaceStatus.AtTarget => "at-target",
+            FurnaceStatus.WaitingForDeadband => "waiting",
+            _ => ""
+        };
+    }
+
+    private string FormatMinutes(double minutes)
+    {
+        if (minutes < 1) return "< 1 min";
+        if (minutes < 60) return $"{Math.Round(minutes)} min";
+        var hours = (int)(minutes / 60);
+        var mins = (int)(minutes % 60);
+        return mins > 0 ? $"{hours}h {mins}m" : $"{hours}h";
+    }
+}

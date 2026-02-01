@@ -1,0 +1,52 @@
+@namespace EcobeeFurnaceEta.Blazor.Components
+
+<div class="temp-gauge">
+    <div class="gauge-labels">
+        <span class="gauge-label outdoor">@OutdoorTempF.ToString("F1")°F</span>
+        <span class="gauge-label current">@CurrentTempF.ToString("F1")°F</span>
+        <span class="gauge-label target">@TargetTempF.ToString("F1")°F</span>
+    </div>
+    <div class="gauge-bar">
+        <div class="gauge-track">
+            @* Outdoor marker *@
+            <div class="gauge-marker outdoor" style="left: @GetMarkerPosition(OutdoorTempF)%">
+                <div class="marker-dot"></div>
+            </div>
+            @* Current temp marker *@
+            <div class="gauge-marker current" style="left: @GetMarkerPosition(CurrentTempF)%">
+                <div class="marker-dot"></div>
+            </div>
+            @* Target marker *@
+            <div class="gauge-marker target" style="left: @GetMarkerPosition(TargetTempF)%">
+                <div class="marker-dot"></div>
+            </div>
+            @* Progress fill from outdoor to current *@
+            <div class="gauge-fill" style="left: @GetMarkerPosition(OutdoorTempF)%; width: @GetFillWidth()%"></div>
+        </div>
+    </div>
+    <div class="gauge-sublabels">
+        <span class="sublabel outdoor">outside</span>
+        <span class="sublabel current">now</span>
+        <span class="sublabel target">target</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public double OutdoorTempF { get; set; }
+    [Parameter] public double CurrentTempF { get; set; }
+    [Parameter] public double TargetTempF { get; set; }
+
+    private double MinTemp => Math.Min(OutdoorTempF - 5, 0);
+    private double MaxTemp => Math.Max(TargetTempF + 10, 80);
+    private double Range => MaxTemp - MinTemp;
+
+    private double GetMarkerPosition(double temp)
+    {
+        return ((temp - MinTemp) / Range) * 100;
+    }
+
+    private double GetFillWidth()
+    {
+        return GetMarkerPosition(CurrentTempF) - GetMarkerPosition(OutdoorTempF);
+    }
+}
