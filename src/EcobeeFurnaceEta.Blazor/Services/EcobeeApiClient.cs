@@ -106,6 +106,158 @@ public class EcobeeApiClient
     }
 
     /// <summary>
+    /// Gets runtime statistics including 24h history and projections.
+    /// </summary>
+    public async Task<RuntimeStats> GetRuntimeStatsAsync()
+    {
+        if (!await _tokenStorage.IsAuthenticatedAsync())
+        {
+            return RuntimeStats.CreateMockStats();
+        }
+
+        try
+        {
+            var accessToken = await _tokenStorage.GetJwtTokenAsync();
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                accessToken = await _authService.GetValidAccessTokenAsync();
+            }
+
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                return RuntimeStats.CreateMockStats();
+            }
+
+            var thermostatId = await _tokenStorage.GetThermostatIdAsync() ?? "";
+
+            // Request includes extended runtime for last 24 hours
+            var selection = new
+            {
+                selectionType = string.IsNullOrEmpty(thermostatId) ? "registered" : "thermostats",
+                selectionMatch = thermostatId,
+                includeRuntime = true,
+                includeExtendedRuntime = true,
+                includeWeather = true,
+                includeEquipmentStatus = true
+            };
+
+            var selectionJson = JsonSerializer.Serialize(selection);
+
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                $"{EcobeeApiBase}/thermostat?json={{\"selection\":{selectionJson}}}");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return RuntimeStats.CreateMockStats();
+            }
+
+            var apiResponse = await response.Content.ReadFromJsonAsync<EcobeeThermostatResponse>();
+
+            if (apiResponse?.ThermostatList == null || apiResponse.ThermostatList.Count == 0)
+            {
+                return RuntimeStats.CreateMockStats();
+            }
+
+            return ConvertToRuntimeStats(apiResponse.ThermostatList[0]);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching runtime stats: {ex.Message}");
+            return RuntimeStats.CreateMockStats();
+        }
+    }
+
+    private RuntimeStats ConvertToRuntimeStats(EcobeeThermostat thermostat)
+    {
+        var stats = new RuntimeStats
+        {
+            LastUpdated = DateTime.Now
+        };
+
+        // Check equipment status for current running state
+        var equipmentStatus = thermostat.EquipmentStatus ?? "";
+        stats.IsCurrentlyHeating = equipmentStatus.Contains("heat", StringComparison.OrdinalIgnoreCase) ||
+                                   equipmentStatus.Contains("auxHeat", StringComparison.OrdinalIgnoreCase);
+        stats.IsCurrentlyCooling = equipmentStatus.Contains("cool", StringComparison.OrdinalIgnoreCase);
+
+        // Get extended runtime data if available
+        if (thermostat.ExtendedRuntime != null)
+        {
+            // ExtendedRuntime contains 5-minute interval data
+            // actualHeat/actualCool are arrays of runtime seconds per interval
+            var heatRuntimes = thermostat.ExtendedRuntime.ActualHeat ?? new List<int>();
+            var coolRuntimes = thermostat.ExtendedRuntime.ActualCool ?? new List<int>();
+
+            // Sum up last 288 intervals (24 hours at 5-min intervals)
+            var last24hHeat = heatRuntimes.TakeLast(288).Sum();
+            var last24hCool = coolRuntimes.TakeLast(288).Sum();
+
+            stats.TotalHeatingMinutes24h = last24hHeat / 60; // Convert seconds to minutes
+            stats.TotalCoolingMinutes24h = last24hCool / 60;
+
+            // Count heating cycles (transitions from 0 to non-zero)
+            var cycles = 0;
+            var wasHeating = false;
+            foreach (var heat in heatRuntimes.TakeLast(288))
+            {
+                var isHeating = heat > 0;
+                if (isHeating && !wasHeating) cycles++;
+                wasHeating = isHeating;
+            }
+            stats.HeatingCycles24h = cycles;
+
+            // Current cycle runtime (last non-zero sequence)
+            if (stats.IsCurrentlyHeating && heatRuntimes.Count > 0)
+            {
+                var currentCycleSeconds = 0;
+                for (int i = heatRuntimes.Count - 1; i >= 0; i--)
+                {
+                    if (heatRuntimes[i] > 0)
+                        currentCycleSeconds += heatRuntimes[i];
+                    else
+                        break;
+                }
+                stats.CurrentCycleMinutes = currentCycleSeconds / 60;
+            }
+        }
+
+        // Get weather data for projections
+        if (thermostat.Weather?.Forecasts != null && thermostat.Weather.Forecasts.Count > 0)
+        {
+            // Current/recent outdoor temp
+            stats.AvgOutdoorTemp24h = thermostat.Weather.Forecasts[0].Temperature / 10.0;
+
+            // Tomorrow's forecast (if available, usually index 4+ is next day)
+            if (thermostat.Weather.Forecasts.Count > 4)
+            {
+                stats.ForecastedAvgTempTomorrow = thermostat.Weather.Forecasts[4].Temperature / 10.0;
+            }
+            else
+            {
+                stats.ForecastedAvgTempTomorrow = stats.AvgOutdoorTemp24h;
+            }
+
+            // Project tomorrow's runtime based on temperature difference
+            // Simple linear model: runtime increases as temp decreases
+            if (stats.TotalHeatingMinutes24h > 0 && stats.AvgOutdoorTemp24h != stats.ForecastedAvgTempTomorrow)
+            {
+                var tempDiff = stats.AvgOutdoorTemp24h - stats.ForecastedAvgTempTomorrow;
+                var runtimeAdjustment = 1.0 + (tempDiff * 0.05); // 5% more runtime per degree colder
+                stats.ProjectedHeatingMinutesTomorrow = (int)(stats.TotalHeatingMinutes24h * runtimeAdjustment);
+            }
+            else
+            {
+                stats.ProjectedHeatingMinutesTomorrow = stats.TotalHeatingMinutes24h;
+            }
+        }
+
+        return stats;
+    }
+
+    /// <summary>
     /// Gets today's schedule from Ecobee or mock data.
     /// </summary>
     public async Task<List<ScheduleEvent>> GetTodayScheduleAsync()
@@ -311,6 +463,9 @@ public class EcobeeThermostat
     [JsonPropertyName("runtime")]
     public EcobeeRuntime? Runtime { get; set; }
 
+    [JsonPropertyName("extendedRuntime")]
+    public EcobeeExtendedRuntime? ExtendedRuntime { get; set; }
+
     [JsonPropertyName("weather")]
     public EcobeeWeather? Weather { get; set; }
 
@@ -319,6 +474,39 @@ public class EcobeeThermostat
 
     [JsonPropertyName("settings")]
     public EcobeeSettings? Settings { get; set; }
+
+    [JsonPropertyName("equipmentStatus")]
+    public string? EquipmentStatus { get; set; }
+}
+
+public class EcobeeExtendedRuntime
+{
+    [JsonPropertyName("lastReadingTimestamp")]
+    public string LastReadingTimestamp { get; set; } = "";
+
+    [JsonPropertyName("runtimeDate")]
+    public string RuntimeDate { get; set; } = "";
+
+    [JsonPropertyName("runtimeInterval")]
+    public int RuntimeInterval { get; set; }
+
+    [JsonPropertyName("actualTemperature")]
+    public List<int> ActualTemperature { get; set; } = new();
+
+    [JsonPropertyName("actualHumidity")]
+    public List<int> ActualHumidity { get; set; } = new();
+
+    [JsonPropertyName("desiredHeat")]
+    public List<int> DesiredHeat { get; set; } = new();
+
+    [JsonPropertyName("desiredCool")]
+    public List<int> DesiredCool { get; set; } = new();
+
+    [JsonPropertyName("actualHeat")]
+    public List<int> ActualHeat { get; set; } = new();
+
+    [JsonPropertyName("actualCool")]
+    public List<int> ActualCool { get; set; } = new();
 }
 
 public class EcobeeRuntime

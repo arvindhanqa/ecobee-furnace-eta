@@ -1,0 +1,45 @@
+@using EcobeeFurnaceEta.Blazor.Models
+
+<div class="card card-eta">
+    <div class="card-header">
+        <div class="card-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+            </svg>
+        </div>
+        <span class="card-title">ETA to Target</span>
+    </div>
+    <div class="card-body">
+        @if (IsAtTarget)
+        {
+            <div class="eta-display at-target">
+                <span class="eta-value">At Target</span>
+                <span class="eta-icon">✓</span>
+            </div>
+        }
+        else
+        {
+            <div class="eta-display">
+                <span class="eta-value">~@MinutesToTarget</span>
+                <span class="eta-unit">min</span>
+            </div>
+            <div class="eta-detail">
+                <span>@CurrentTempF.ToString("F1")°F → @TargetTempF.ToString("F1")°F</span>
+            </div>
+        }
+        <div class="card-detail">
+            <span class="detail-label">Effective rate:</span>
+            <span class="detail-value @(EffectiveRate > 0 ? "positive" : "negative")">
+                @(EffectiveRate > 0 ? "+" : "")@EffectiveRate.ToString("F2")°/min
+            </span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int MinutesToTarget { get; set; }
+    [Parameter] public double CurrentTempF { get; set; }
+    [Parameter] public double TargetTempF { get; set; }
+    [Parameter] public double EffectiveRate { get; set; }
+    [Parameter] public bool IsAtTarget { get; set; }
+}

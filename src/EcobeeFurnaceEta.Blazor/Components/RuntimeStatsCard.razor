@@ -1,0 +1,32 @@
+@using EcobeeFurnaceEta.Blazor.Models
+
+<div class="card card-runtime">
+    <div class="card-header">
+        <div class="card-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+            </svg>
+        </div>
+        <span class="card-title">Last 24 Hours</span>
+    </div>
+    <div class="card-body">
+        <div class="runtime-display">
+            <span class="runtime-value">@Stats.FormattedRuntime24h</span>
+            <span class="runtime-label">total runtime</span>
+        </div>
+        <div class="runtime-details">
+            <div class="runtime-row">
+                <span class="runtime-label">Cycles:</span>
+                <span class="runtime-stat">@Stats.HeatingCycles24h</span>
+            </div>
+            <div class="runtime-row">
+                <span class="runtime-label">Avg outdoor:</span>
+                <span class="runtime-stat">@Stats.AvgOutdoorTemp24h.ToString("F1")°F</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public RuntimeStats Stats { get; set; } = new();
+}

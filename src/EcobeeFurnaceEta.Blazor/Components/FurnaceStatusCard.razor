@@ -1,0 +1,46 @@
+@using EcobeeFurnaceEta.Blazor.Models
+
+<div class="card @(IsRunning ? "card-active" : "card-idle")">
+    <div class="card-header">
+        <div class="card-icon @(IsRunning ? "icon-pulse" : "")">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" style="@(IsRunning ? "" : "opacity: 0.3")"/>
+            </svg>
+        </div>
+        <span class="card-title">Furnace Status</span>
+    </div>
+    <div class="card-body">
+        <div class="status-display @(IsRunning ? "status-running" : "status-off")">
+            @if (IsRunning)
+            {
+                <span class="status-indicator running"></span>
+                <span class="status-text">RUNNING</span>
+            }
+            else
+            {
+                <span class="status-indicator off"></span>
+                <span class="status-text">OFF</span>
+            }
+        </div>
+        @if (IsRunning && CurrentCycleMinutes > 0)
+        {
+            <div class="card-detail">
+                <span class="detail-label">Current cycle:</span>
+                <span class="detail-value">@CurrentCycleMinutes min</span>
+            </div>
+        }
+        @if (!IsRunning && MinutesToFurnaceOn > 0)
+        {
+            <div class="card-detail">
+                <span class="detail-label">Starts in:</span>
+                <span class="detail-value">~@MinutesToFurnaceOn min</span>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsRunning { get; set; }
+    [Parameter] public int CurrentCycleMinutes { get; set; }
+    [Parameter] public int MinutesToFurnaceOn { get; set; }
+}
