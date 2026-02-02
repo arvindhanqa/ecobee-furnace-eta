@@ -15,6 +15,7 @@ builder.Services.AddScoped<SecureTokenStorage>();
 builder.Services.AddScoped<EcobeeAuthService>();
 builder.Services.AddScoped<HeatLossCalculator>();
 builder.Services.AddScoped<PredictionEngine>();
+builder.Services.AddScoped<RuntimeStatsCache>();
 builder.Services.AddScoped<EcobeeApiClient>();
 
 await builder.Build().RunAsync();

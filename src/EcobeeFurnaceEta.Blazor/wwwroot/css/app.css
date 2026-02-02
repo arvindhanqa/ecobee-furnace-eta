@@ -930,6 +930,73 @@ html, body {
     color: var(--text-muted);
 }
 
+.status-aux .status-text {
+    color: var(--accent-red);
+}
+
+.status-cooling .status-text {
+    color: var(--accent-blue);
+}
+
+.status-fan .status-text {
+    color: var(--accent-green);
+}
+
+.status-indicator.aux {
+    background: var(--accent-red);
+    box-shadow: 0 0 12px var(--accent-red);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-indicator.cooling {
+    background: var(--accent-blue);
+    box-shadow: 0 0 12px var(--accent-blue);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-indicator.fan {
+    background: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+}
+
+/* Equipment Badges */
+.equipment-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.equipment-badge {
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.equipment-badge.heat {
+    background: var(--accent-orange);
+    color: var(--bg-primary);
+}
+
+.equipment-badge.aux {
+    background: var(--accent-red);
+    color: white;
+}
+
+.equipment-badge.pump {
+    background: var(--accent-yellow);
+    color: var(--bg-primary);
+}
+
+.equipment-badge.fan {
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
 /* Temperature Card */
 .temp-display {
     display: flex;

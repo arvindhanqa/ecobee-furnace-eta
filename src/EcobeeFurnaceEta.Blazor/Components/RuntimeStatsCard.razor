@@ -7,7 +7,7 @@
                 <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
             </svg>
         </div>
-        <span class="card-title">Last 24 Hours</span>
+        <span class="card-title">Yesterday</span>
     </div>
     <div class="card-body">
         <div class="runtime-display">
@@ -23,6 +23,20 @@
                 <span class="runtime-label">Avg outdoor:</span>
                 <span class="runtime-stat">@Stats.AvgOutdoorTemp24h.ToString("F1")°F</span>
             </div>
+            @if (Stats.AvgHeatRetentionMinutes > 0)
+            {
+                <div class="runtime-row">
+                    <span class="runtime-label">Heat retention:</span>
+                    <span class="runtime-stat">@Stats.AvgHeatRetentionMinutes min</span>
+                </div>
+            }
+            @if (Stats.HeatLossRatePerHour > 0)
+            {
+                <div class="runtime-row">
+                    <span class="runtime-label">Heat loss:</span>
+                    <span class="runtime-stat">@Stats.HeatLossRatePerHour.ToString("F1")°F/hr</span>
+                </div>
+            }
         </div>
     </div>
 </div>

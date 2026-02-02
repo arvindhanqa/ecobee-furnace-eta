@@ -7,6 +7,7 @@
 @inject EcobeeAuthService AuthService
 @inject SecureTokenStorage TokenStorage
 @inject PredictionEngine PredictionEngine
+@inject RuntimeStatsCache StatsCache
 
 @if (!_showDashboard)
 {
@@ -45,8 +46,7 @@ else
                 <!-- Row 1: Status Cards -->
                 <div class="card-row">
                     <FurnaceStatusCard
-                        IsRunning="@_runtimeStats.IsCurrentlyHeating"
-                        CurrentCycleMinutes="@_runtimeStats.CurrentCycleMinutes"
+                        Stats="@_runtimeStats"
                         MinutesToFurnaceOn="@((int)_prediction.MinutesToFurnaceOn)" />
 
                     <TemperatureCard
@@ -214,15 +214,14 @@ else
         {
             _thermostatData = await ApiClient.GetThermostatDataAsync();
             _heatUpProfile = await ApiClient.GetHeatUpProfileAsync();
-            _runtimeStats = await ApiClient.GetRuntimeStatsAsync();
+
+            // Get runtime stats and merge with cache to preserve historical data
+            var newStats = await ApiClient.GetRuntimeStatsAsync();
+            _runtimeStats = await StatsCache.MergeWithCacheAsync(newStats);
 
             if (_thermostatData != null && _heatUpProfile != null)
             {
                 _prediction = PredictionEngine.Predict(_thermostatData, _heatUpProfile);
-
-                // Update runtime stats with current heating state from thermostat
-                _runtimeStats.IsCurrentlyHeating = _thermostatData.IsHeating ||
-                    (_thermostatData.CurrentTempF < _thermostatData.SetpointF - _thermostatData.DeadbandF);
             }
         }
         finally
@@ -242,13 +241,14 @@ else
         try
         {
             _thermostatData = await ApiClient.GetThermostatDataAsync();
-            _runtimeStats = await ApiClient.GetRuntimeStatsAsync();
+
+            // Get runtime stats and merge with cache to preserve historical data
+            var newStats = await ApiClient.GetRuntimeStatsAsync();
+            _runtimeStats = await StatsCache.MergeWithCacheAsync(newStats);
 
             if (_thermostatData != null && _heatUpProfile != null)
             {
                 _prediction = PredictionEngine.Predict(_thermostatData, _heatUpProfile);
-                _runtimeStats.IsCurrentlyHeating = _thermostatData.IsHeating ||
-                    (_thermostatData.CurrentTempF < _thermostatData.SetpointF - _thermostatData.DeadbandF);
             }
         }
         finally

@@ -26,7 +26,7 @@
                     : 0;
             }
             <div class="projection-row">
-                <span class="projection-label">vs today:</span>
+                <span class="projection-label">vs yesterday:</span>
                 <span class="projection-stat @(diff > 0 ? "increase" : diff < 0 ? "decrease" : "")">
                     @(diff > 0 ? "+" : "")@diff min (@(diffPercent > 0 ? "+" : "")@diffPercent.ToString("F0")%)
                 </span>
