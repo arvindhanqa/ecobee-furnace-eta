@@ -1,46 +1,113 @@
 @using EcobeeFurnaceEta.Blazor.Models
 
-<div class="card @(IsRunning ? "card-active" : "card-idle")">
+<div class="card @(IsActive ? "card-active" : "card-idle")">
     <div class="card-header">
-        <div class="card-icon @(IsRunning ? "icon-pulse" : "")">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" style="@(IsRunning ? "" : "opacity: 0.3")"/>
-            </svg>
+        <div class="card-icon @(IsActive ? "icon-pulse" : "")">
+            @if (Stats.IsCurrentlyHeating)
+            {
+                <!-- Flame icon for heating -->
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z"/>
+                </svg>
+            }
+            else if (Stats.IsCurrentlyCooling)
+            {
+                <!-- Snowflake icon for cooling -->
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22 11h-4.17l3.24-3.24-1.41-1.42L15 11h-2V9l4.66-4.66-1.42-1.41L13 6.17V2h-2v4.17L7.76 2.93 6.34 4.34 11 9v2H9L4.34 6.34 2.93 7.76 6.17 11H2v2h4.17l-3.24 3.24 1.41 1.42L9 13h2v2l-4.66 4.66 1.42 1.41L11 17.83V22h2v-4.17l3.24 3.24 1.42-1.41L13 15v-2h2l4.66 4.66 1.41-1.42L17.83 13H22z"/>
+                </svg>
+            }
+            else if (Stats.IsFanRunning)
+            {
+                <!-- Fan icon -->
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c0-3 2.5-5.5 5.5-5.5S23 6.5 23 9.5s-2.5 5.5-5.5 5.5c-.28 0-.55-.02-.81-.06L12.17 12l4.52-2.94c.26-.04.53-.06.81-.06 1.65 0 3 1.35 3 3s-1.35 3-3 3-3-1.35-3-3h-.01c0-.28.02-.55.06-.81L12 14.83l-2.94-4.52c-.04-.26-.06-.53-.06-.81 0-1.65 1.35-3 3-3s3 1.35 3 3-1.35 3-3 3c-.28 0-.55-.02-.81-.06l2.94 4.52c.04.26.06.53.06.81 0 1.65-1.35 3-3 3s-3-1.35-3-3 1.35-3 3-3c.28 0 .55.02.81.06l-2.94-4.52C9.02 10.05 9 9.78 9 9.5c0-1.65 1.35-3 3-3s3 1.35 3 3-1.35 3-3 3c-.28 0-.55-.02-.81-.06L8.17 12l-4.52 2.94c-.26.04-.53.06-.81.06-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3h.01c0 .28-.02.55-.06.81l2.94-4.52c.04-.26.06-.53.06-.81z"/>
+                </svg>
+            }
+            else
+            {
+                <!-- Idle/power icon -->
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" style="opacity: 0.3"/>
+                </svg>
+            }
         </div>
         <span class="card-title">Furnace Status</span>
     </div>
     <div class="card-body">
-        <div class="status-display @(IsRunning ? "status-running" : "status-off")">
-            @if (IsRunning)
-            {
-                <span class="status-indicator running"></span>
-                <span class="status-text">RUNNING</span>
-            }
-            else
-            {
-                <span class="status-indicator off"></span>
-                <span class="status-text">OFF</span>
-            }
+        <div class="status-display @GetStatusClass()">
+            <span class="status-indicator @GetIndicatorClass()"></span>
+            <span class="status-text">@Stats.CurrentStatusDescription.ToUpper()</span>
         </div>
-        @if (IsRunning && CurrentCycleMinutes > 0)
+
+        @if (Stats.IsCurrentlyHeating || Stats.IsCurrentlyCooling)
+        {
+            <div class="equipment-details">
+                @if (Stats.IsPrimaryHeatRunning)
+                {
+                    <span class="equipment-badge heat">Stage 1</span>
+                }
+                @if (Stats.IsAuxHeatRunning)
+                {
+                    <span class="equipment-badge aux">Aux</span>
+                }
+                @if (Stats.IsHeatPumpRunning)
+                {
+                    <span class="equipment-badge pump">Heat Pump</span>
+                }
+                @if (Stats.IsFanRunning)
+                {
+                    <span class="equipment-badge fan">Fan</span>
+                }
+            </div>
+        }
+
+        @if ((Stats.IsCurrentlyHeating || Stats.IsCurrentlyCooling) && Stats.CurrentCycleMinutes > 0)
         {
             <div class="card-detail">
                 <span class="detail-label">Current cycle:</span>
-                <span class="detail-value">@CurrentCycleMinutes min</span>
+                <span class="detail-value">@Stats.CurrentCycleMinutes min</span>
             </div>
         }
-        @if (!IsRunning && MinutesToFurnaceOn > 0)
+        @if (!Stats.IsCurrentlyHeating && !Stats.IsCurrentlyCooling && MinutesToFurnaceOn > 0)
         {
             <div class="card-detail">
                 <span class="detail-label">Starts in:</span>
                 <span class="detail-value">~@MinutesToFurnaceOn min</span>
             </div>
         }
+
+        @if (Stats.AvgHeatRetentionMinutes > 0)
+        {
+            <div class="card-detail">
+                <span class="detail-label">Heat retention:</span>
+                <span class="detail-value">@Stats.FormattedHeatRetention</span>
+            </div>
+        }
     </div>
 </div>
 
 @code {
-    [Parameter] public bool IsRunning { get; set; }
-    [Parameter] public int CurrentCycleMinutes { get; set; }
+    [Parameter] public RuntimeStats Stats { get; set; } = new();
     [Parameter] public int MinutesToFurnaceOn { get; set; }
+
+    private bool IsActive => Stats.IsCurrentlyHeating || Stats.IsCurrentlyCooling || Stats.IsFanRunning;
+
+    private string GetStatusClass()
+    {
+        if (Stats.IsAuxHeatRunning) return "status-aux";
+        if (Stats.IsCurrentlyHeating) return "status-running";
+        if (Stats.IsCurrentlyCooling) return "status-cooling";
+        if (Stats.IsFanRunning) return "status-fan";
+        return "status-off";
+    }
+
+    private string GetIndicatorClass()
+    {
+        if (Stats.IsAuxHeatRunning) return "aux";
+        if (Stats.IsCurrentlyHeating) return "running";
+        if (Stats.IsCurrentlyCooling) return "cooling";
+        if (Stats.IsFanRunning) return "fan";
+        return "off";
+    }
 }

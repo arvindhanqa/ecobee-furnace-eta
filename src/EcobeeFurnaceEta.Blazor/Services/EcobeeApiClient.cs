@@ -177,11 +177,22 @@ public class EcobeeApiClient
             LastUpdated = DateTime.Now
         };
 
-        // Check equipment status for current running state
+        // Parse equipment status string for detailed equipment state
+        // Ecobee uses comma-separated values: "heatPump,fan", "auxHeat1,fan", "compCool1,fan", etc.
         var equipmentStatus = thermostat.EquipmentStatus ?? "";
-        stats.IsCurrentlyHeating = equipmentStatus.Contains("heat", StringComparison.OrdinalIgnoreCase) ||
-                                   equipmentStatus.Contains("auxHeat", StringComparison.OrdinalIgnoreCase);
-        stats.IsCurrentlyCooling = equipmentStatus.Contains("cool", StringComparison.OrdinalIgnoreCase);
+        stats.EquipmentStatus = equipmentStatus;
+
+        var statusParts = equipmentStatus.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim().ToLowerInvariant())
+            .ToList();
+
+        // Parse individual equipment states
+        stats.IsFanRunning = statusParts.Contains("fan");
+        stats.IsHeatPumpRunning = statusParts.Any(s => s.StartsWith("heatpump"));
+        stats.IsPrimaryHeatRunning = statusParts.Any(s => s == "heat" || s == "heat1" || s.StartsWith("heatpump"));
+        stats.IsAuxHeatRunning = statusParts.Any(s => s.StartsWith("auxheat") || s == "heat2" || s == "heat3");
+        stats.IsCurrentlyHeating = stats.IsPrimaryHeatRunning || stats.IsAuxHeatRunning || stats.IsHeatPumpRunning;
+        stats.IsCurrentlyCooling = statusParts.Any(s => s.StartsWith("compcool") || s == "cool" || s.StartsWith("cool"));
 
         // Get extended runtime data if available
         if (thermostat.ExtendedRuntime != null)
@@ -190,6 +201,7 @@ public class EcobeeApiClient
             // actualHeat/actualCool are arrays of runtime seconds per interval
             var heatRuntimes = thermostat.ExtendedRuntime.ActualHeat ?? new List<int>();
             var coolRuntimes = thermostat.ExtendedRuntime.ActualCool ?? new List<int>();
+            var temperatures = thermostat.ExtendedRuntime.ActualTemperature ?? new List<int>();
 
             // Sum up last 288 intervals (24 hours at 5-min intervals)
             var last24hHeat = heatRuntimes.TakeLast(288).Sum();
@@ -222,6 +234,9 @@ public class EcobeeApiClient
                 }
                 stats.CurrentCycleMinutes = currentCycleSeconds / 60;
             }
+
+            // Calculate heat retention (how long temp stays stable after furnace off)
+            CalculateHeatRetention(stats, heatRuntimes, temperatures);
         }
 
         // Get weather data for projections
@@ -255,6 +270,69 @@ public class EcobeeApiClient
         }
 
         return stats;
+    }
+
+    /// <summary>
+    /// Calculate heat retention - how long the house holds heat after furnace cycles off.
+    /// </summary>
+    private void CalculateHeatRetention(RuntimeStats stats, List<int> heatRuntimes, List<int> temperatures)
+    {
+        if (heatRuntimes.Count < 20 || temperatures.Count < 20)
+            return;
+
+        var retentionPeriods = new List<int>();
+        var heatLossRates = new List<double>();
+
+        // Find periods where furnace was off and measure how long before significant temp drop
+        for (int i = 1; i < Math.Min(heatRuntimes.Count, temperatures.Count) - 1; i++)
+        {
+            // Look for transition from heating to off
+            if (heatRuntimes[i - 1] > 0 && heatRuntimes[i] == 0)
+            {
+                var startTemp = temperatures[i] / 10.0; // Ecobee temps are in tenths
+                var offDuration = 0;
+                var endTemp = startTemp;
+
+                // Count how many intervals until furnace comes back on or temp drops significantly
+                for (int j = i; j < heatRuntimes.Count && j < temperatures.Count; j++)
+                {
+                    if (heatRuntimes[j] > 0)
+                        break;
+
+                    offDuration++;
+                    endTemp = temperatures[j] / 10.0;
+
+                    // Stop if temp dropped more than 1°F
+                    if (startTemp - endTemp > 1.0)
+                        break;
+                }
+
+                if (offDuration > 2) // At least 10 minutes (2 x 5-min intervals)
+                {
+                    retentionPeriods.Add(offDuration * 5); // Convert to minutes
+
+                    // Calculate heat loss rate (°F per hour)
+                    var tempDrop = startTemp - endTemp;
+                    var hoursOff = offDuration * 5.0 / 60.0;
+                    if (hoursOff > 0)
+                    {
+                        heatLossRates.Add(tempDrop / hoursOff);
+                    }
+                }
+            }
+        }
+
+        // Average the retention periods
+        if (retentionPeriods.Count > 0)
+        {
+            stats.AvgHeatRetentionMinutes = (int)retentionPeriods.Average();
+        }
+
+        // Average the heat loss rates
+        if (heatLossRates.Count > 0)
+        {
+            stats.HeatLossRatePerHour = heatLossRates.Average();
+        }
     }
 
     /// <summary>
