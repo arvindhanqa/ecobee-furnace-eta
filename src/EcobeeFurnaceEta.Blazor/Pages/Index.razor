@@ -2,6 +2,7 @@
 @using EcobeeFurnaceEta.Blazor.Components
 @using EcobeeFurnaceEta.Blazor.Models
 @using EcobeeFurnaceEta.Blazor.Services
+@implements IDisposable
 @inject EcobeeApiClient ApiClient
 @inject EcobeeAuthService AuthService
 @inject SecureTokenStorage TokenStorage
@@ -20,7 +21,7 @@ else
                 <span class="thermostat-name">@_thermostatData?.Name</span>
                 @if (_isLiveData)
                 {
-                    <span class="live-badge" title="Connected to Ecobee">LIVE</span>
+                    <span class="live-badge" title="Connected to Ecobee - Auto-refresh every 5s">LIVE</span>
                 }
                 else
                 {
@@ -34,50 +35,56 @@ else
             </div>
         </header>
 
-        @if (_isLoading)
+        @if (_isLoading && _thermostatData == null)
         {
             <div class="loading">Loading thermostat data...</div>
         }
         else if (_thermostatData != null && _prediction != null)
         {
-            <main class="dashboard-content">
-                <section class="eta-section">
-                    <ETACountdown Prediction="_prediction" TargetTempF="_thermostatData.SetpointF" />
-                </section>
+            <main class="dashboard-cards">
+                <!-- Row 1: Status Cards -->
+                <div class="card-row">
+                    <FurnaceStatusCard
+                        IsRunning="@_runtimeStats.IsCurrentlyHeating"
+                        CurrentCycleMinutes="@_runtimeStats.CurrentCycleMinutes"
+                        MinutesToFurnaceOn="@((int)_prediction.MinutesToFurnaceOn)" />
 
-                <section class="gauge-section">
-                    <TempGauge
-                        OutdoorTempF="_thermostatData.OutdoorTempF"
-                        CurrentTempF="_thermostatData.CurrentTempF"
-                        TargetTempF="_thermostatData.SetpointF" />
-                </section>
+                    <TemperatureCard
+                        CurrentTempF="@_thermostatData.CurrentTempF"
+                        SetpointF="@_thermostatData.SetpointF"
+                        OutdoorTempF="@_thermostatData.OutdoorTempF"
+                        HumidityPercent="@_thermostatData.HumidityPercent" />
+                </div>
 
-                <section class="curve-section">
-                    <TempCurve
-                        Projections="_prediction.Projections"
-                        CurrentTempF="_thermostatData.CurrentTempF"
-                        TargetTempF="_thermostatData.SetpointF"
-                        OutdoorTempF="_thermostatData.OutdoorTempF" />
-                </section>
+                <!-- Row 2: ETA and Stats -->
+                <div class="card-row">
+                    <ETACard
+                        MinutesToTarget="@((int)_prediction.MinutesToTarget)"
+                        CurrentTempF="@_thermostatData.CurrentTempF"
+                        TargetTempF="@_thermostatData.SetpointF"
+                        EffectiveRate="@_prediction.EffectiveRatePerMin"
+                        IsAtTarget="@(_thermostatData.CurrentTempF >= _thermostatData.SetpointF)" />
 
-                <section class="stats-section">
-                    <StatsPanel Prediction="_prediction" />
-                </section>
+                    <RuntimeStatsCard Stats="@_runtimeStats" />
+                </div>
 
-                <section class="schedule-section">
-                    <ScheduleTimeline Schedule="_schedule" />
-                </section>
+                <!-- Row 3: Projection -->
+                <div class="card-row single">
+                    <ProjectedRuntimeCard Stats="@_runtimeStats" />
+                </div>
             </main>
 
             <footer class="dashboard-footer">
-                <span class="outdoor-temp">
-                    Outside: @_thermostatData.OutdoorTempF.ToString("F1")°F
-                    (@FahrenheitToCelsius(_thermostatData.OutdoorTempF).ToString("F1")°C)
+                <span class="last-update">
+                    Updated: @_thermostatData.Timestamp.ToString("HH:mm:ss")
+                    @if (_isRefreshing)
+                    {
+                        <span class="refresh-indicator"></span>
+                    }
                 </span>
-                <span class="humidity">Humidity: @_thermostatData.HumidityPercent.ToString("F0")%</span>
-                <span class="last-update">Updated: @_thermostatData.Timestamp.ToString("HH:mm:ss")</span>
-                <button class="btn-refresh" @onclick="RefreshData" title="Refresh">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <span class="auto-refresh">Auto-refresh: @(_autoRefreshEnabled ? "ON" : "OFF")</span>
+                <button class="btn-refresh" @onclick="RefreshData" title="Refresh now">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="@(_isRefreshing ? "spinning" : "")">
                         <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
                     </svg>
                 </button>
@@ -95,6 +102,14 @@ else
             <div class="setting-item">
                 <label>Connection Status</label>
                 <p>@(_isLiveData ? "Connected to Ecobee" : "Using Demo Data")</p>
+            </div>
+
+            <div class="setting-item">
+                <label>Auto-Refresh (5 seconds)</label>
+                <button class="btn @(_autoRefreshEnabled ? "btn-secondary" : "btn-primary")"
+                        @onclick="ToggleAutoRefresh">
+                    @(_autoRefreshEnabled ? "Disable" : "Enable")
+                </button>
             </div>
 
             <div class="setting-actions">
@@ -121,21 +136,56 @@ else
     private ThermostatData? _thermostatData;
     private HeatUpProfile? _heatUpProfile;
     private FurnacePrediction? _prediction;
-    private List<ScheduleEvent> _schedule = new();
+    private RuntimeStats _runtimeStats = new();
     private bool _isLoading = true;
+    private bool _isRefreshing = false;
     private bool _showDashboard = false;
     private bool _isLiveData = false;
     private bool _showSettingsModal = false;
+    private bool _autoRefreshEnabled = true;
+    private System.Threading.Timer? _refreshTimer;
 
     protected override async Task OnInitializedAsync()
     {
-        // Check if already authenticated
         var isAuthenticated = await AuthService.IsAuthenticatedAsync();
         if (isAuthenticated)
         {
             _showDashboard = true;
             _isLiveData = true;
             await LoadDataAsync();
+            StartAutoRefresh();
+        }
+    }
+
+    private void StartAutoRefresh()
+    {
+        if (_autoRefreshEnabled && _isLiveData)
+        {
+            _refreshTimer?.Dispose();
+            _refreshTimer = new System.Threading.Timer(
+                async _ => await InvokeAsync(RefreshDataSilent),
+                null,
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(5));
+        }
+    }
+
+    private void StopAutoRefresh()
+    {
+        _refreshTimer?.Dispose();
+        _refreshTimer = null;
+    }
+
+    private void ToggleAutoRefresh()
+    {
+        _autoRefreshEnabled = !_autoRefreshEnabled;
+        if (_autoRefreshEnabled)
+        {
+            StartAutoRefresh();
+        }
+        else
+        {
+            StopAutoRefresh();
         }
     }
 
@@ -144,12 +194,14 @@ else
         _showDashboard = true;
         _isLiveData = true;
         await LoadDataAsync();
+        StartAutoRefresh();
     }
 
     private async Task HandleSkipped()
     {
         _showDashboard = true;
         _isLiveData = false;
+        _autoRefreshEnabled = false;
         await LoadDataAsync();
     }
 
@@ -162,11 +214,15 @@ else
         {
             _thermostatData = await ApiClient.GetThermostatDataAsync();
             _heatUpProfile = await ApiClient.GetHeatUpProfileAsync();
-            _schedule = await ApiClient.GetTodayScheduleAsync();
+            _runtimeStats = await ApiClient.GetRuntimeStatsAsync();
 
             if (_thermostatData != null && _heatUpProfile != null)
             {
                 _prediction = PredictionEngine.Predict(_thermostatData, _heatUpProfile);
+
+                // Update runtime stats with current heating state from thermostat
+                _runtimeStats.IsCurrentlyHeating = _thermostatData.IsHeating ||
+                    (_thermostatData.CurrentTempF < _thermostatData.SetpointF - _thermostatData.DeadbandF);
             }
         }
         finally
@@ -176,9 +232,35 @@ else
         }
     }
 
+    private async Task RefreshDataSilent()
+    {
+        if (_isRefreshing) return;
+
+        _isRefreshing = true;
+        StateHasChanged();
+
+        try
+        {
+            _thermostatData = await ApiClient.GetThermostatDataAsync();
+            _runtimeStats = await ApiClient.GetRuntimeStatsAsync();
+
+            if (_thermostatData != null && _heatUpProfile != null)
+            {
+                _prediction = PredictionEngine.Predict(_thermostatData, _heatUpProfile);
+                _runtimeStats.IsCurrentlyHeating = _thermostatData.IsHeating ||
+                    (_thermostatData.CurrentTempF < _thermostatData.SetpointF - _thermostatData.DeadbandF);
+            }
+        }
+        finally
+        {
+            _isRefreshing = false;
+            StateHasChanged();
+        }
+    }
+
     private async Task RefreshData()
     {
-        await LoadDataAsync();
+        await RefreshDataSilent();
     }
 
     private void ShowSettings()
@@ -193,6 +275,7 @@ else
 
     private async Task HandleDisconnect()
     {
+        StopAutoRefresh();
         await AuthService.LogoutAsync();
         _isLiveData = false;
         _showSettingsModal = false;
@@ -205,8 +288,8 @@ else
         _showDashboard = false;
     }
 
-    private static double FahrenheitToCelsius(double fahrenheit)
+    public void Dispose()
     {
-        return (fahrenheit - 32) * 5 / 9;
+        _refreshTimer?.Dispose();
     }
 }
