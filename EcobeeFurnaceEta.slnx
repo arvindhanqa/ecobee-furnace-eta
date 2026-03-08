@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EcobeeFurnaceEta.Blazor/EcobeeFurnaceEta.Blazor.csproj" />
+  </Folder>
+</Solution>
